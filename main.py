@@ -219,15 +219,21 @@ except Exception:
 # Note: main.py already defines a `speak()` function earlier. We'll use that one.
 def takecommand():
     r = sr.Recognizer()
+    
+    # Wait until LIGHT is not speaking
+    while LIGHT_SPEAKING_EVENT.is_set():
+        time.sleep(0.1)
     with sr.Microphone() as source:
         print('listening....')
+        USER_SPEAKING_EVENT.set()  # Mark user as speaking (disables TTS interruption)
         r.pause_threshold = 1
         r.adjust_for_ambient_noise(source)
         try:
             audio = r.listen(source, 10, 6)
         except Exception:
+            USER_SPEAKING_EVENT.clear()
             return ""
-
+    USER_SPEAKING_EVENT.clear()  # Done listening
     try:
         print('recognizing')
         query = r.recognize_google(audio, language='en-in')
@@ -235,7 +241,36 @@ def takecommand():
         time.sleep(2)
     except Exception as e:
         return ""
-    return query.lower()
+    # Prevent LIGHT from responding to her own last response or to empty/noise
+    global LAST_RESPONSE
+    recognized = query.lower().strip()
+    # List of known non-user/AI-generated phrases to ignore
+    NON_USER_PHRASES = [
+        "**acknowledging a greeting**",
+        "**crafting a response**",
+        "**assessing fragmented input**",
+        "**defining the persona's role**",
+        "**awaiting continued input**",
+        "**acknowledge current state**",
+        "**clarifying communication flow**"
+    ]
+    # Ignore empty, whitespace, or very short (likely noise) input
+    if not recognized or len(recognized) < 2:
+        print(f"[INFO] Ignored empty or noise input: '{recognized}'")
+        return ""
+    # Ignore if matches last spoken output
+    if LAST_RESPONSE and recognized == LAST_RESPONSE.strip().lower():
+        print(f"[INFO] Ignored self-response: matches last spoken output: '{recognized}'")
+        return ""
+    # Ignore if matches known non-user/AI-generated phrases
+    if recognized in NON_USER_PHRASES:
+        print(f"[INFO] Ignored non-user/AI-generated phrase: '{recognized}'")
+        return ""
+    # Ignore if not a question or command (basic heuristic: must contain a verb or be a question)
+    if not any(word in recognized for word in ["what", "how", "who", "when", "where", "why", "can", "do", "play", "open", "start", "stop", "tell", "show", "find", "search", "call", "send", "make", "help", "weather", "news"]):
+        print(f"[INFO] Ignored input not recognized as a command or question: '{recognized}'")
+        return ""
+    return recognized
 
 
 # ----- engine/features.py -----
@@ -2975,7 +3010,7 @@ EMOTION_VOICE = {
 CURRENT_EMOTION = "neutral"
 
 def speak(text, emotion="neutral"):
-    """Speak text with emotion, interruptible by user speech."""
+    """Speak text with emotion, more fluid (interrupt only before start)."""
     global LIGHT_SPEAKING_EVENT, USER_SPEAKING_EVENT, INTERRUPT_EVENT, STOP_RESPONDING
     text = personality_wrap(text)
     cfg = EMOTION_VOICE.get(emotion, EMOTION_VOICE["neutral"])
@@ -2985,14 +3020,12 @@ def speak(text, emotion="neutral"):
     except Exception:
         pass
     print(f"[LIGHT-{emotion.upper()}] {text}")
+    # Only check for interruption before starting
+    if USER_SPEAKING_EVENT.is_set() or INTERRUPT_EVENT.is_set() or STOP_RESPONDING.is_set():
+        return
     LIGHT_SPEAKING_EVENT.set()  # Mark as speaking
-    import re
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    for sentence in sentences:
-        if USER_SPEAKING_EVENT.is_set() or INTERRUPT_EVENT.is_set() or STOP_RESPONDING.is_set():
-            break
-        engine.say(sentence)
-        engine.runAndWait()
+    engine.say(text)
+    engine.runAndWait()
     LIGHT_SPEAKING_EVENT.clear()  # Done speaking
 
 def detect_emotion(text):
@@ -3037,9 +3070,8 @@ def _apply_emotion_to_tts(eng):
 
 
 def tts_queue_worker():
-    """TTS worker that can be interrupted by user speech."""
+    """TTS worker that speaks more fluidly (interrupt only before start)."""
     global audio_queue, LIGHT_SPEAKING_EVENT, USER_SPEAKING_EVENT, INTERRUPT_EVENT, STOP_RESPONDING
-    import re
     while True:
         try:
             if audio_queue is None:
@@ -3053,19 +3085,18 @@ def tts_queue_worker():
                 continue
             # Clear temporary interrupt flag before speaking
             INTERRUPT_EVENT.clear()
-            LIGHT_SPEAKING_EVENT.set()
             # Support (text, emotion) or just text
             if isinstance(item, tuple) and len(item) == 2:
                 text, emotion = item
             else:
                 text, emotion = item, "neutral"
             _apply_emotion_to_tts(engine)
-            sentences = re.split(r'(?<=[.!?]) +', text)
-            for sentence in sentences:
-                if USER_SPEAKING_EVENT.is_set() or INTERRUPT_EVENT.is_set() or STOP_RESPONDING.is_set():
-                    break
-                engine.say(sentence)
-                engine.runAndWait()
+            # Only check for interruption before starting
+            if USER_SPEAKING_EVENT.is_set() or INTERRUPT_EVENT.is_set() or STOP_RESPONDING.is_set():
+                continue
+            LIGHT_SPEAKING_EVENT.set()
+            engine.say(text)
+            engine.runAndWait()
             LIGHT_SPEAKING_EVENT.clear()
         except Exception as e:
             print(f"[TTS] Worker error: {e}")
@@ -8392,11 +8423,16 @@ async def listen_audio_realtime(audio_queue_mic):
                 continue
             try:
                 data = await asyncio.to_thread(audio_stream.read, CHUNK_SIZE, **kwargs)
-                try:
-                    await asyncio.wait_for(audio_queue_mic.put({"data": data, "mime_type": "audio/pcm"}), timeout=2.0)
-                except asyncio.TimeoutError:
-                    if audio_queue_mic.full():
-                        pass
+                # Strictly gate: Only enqueue if from real mic (not system/AI)
+                if data and isinstance(data, (bytes, bytearray)) and len(data) > 10:
+                    print("[DEBUG] Mic input chunk received (real user speech)")
+                    try:
+                        await asyncio.wait_for(audio_queue_mic.put({"data": data, "mime_type": "audio/pcm"}), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        if audio_queue_mic.full():
+                            print("[DEBUG] Mic queue full, skipping chunk")
+                else:
+                    print(f"[DEBUG] Ignored non-mic or empty input chunk: {type(data)} len={len(data) if hasattr(data, 'len') else 'N/A'}")
                 error_count = 0
             except Exception as e:
                 error_count += 1

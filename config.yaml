@@ -1,0 +1,226 @@
+# LIGHT Assistant Configuration
+# ============================
+
+# API Settings
+api:
+  # Primary API (gemini, claude, openai)
+  primary: "gemini"
+  
+  # API Keys (set via environment variables, not here for security)
+  # export GENAI_API_KEY="your-key"
+  # export CLAUDE_API_KEY="your-key"
+  # export OPENAI_API_KEY="your-key"
+  
+  # Fallback order if primary fails
+  fallback_order:
+    - "gemini"
+    - "claude"
+    - "openai"
+  
+  # Timeout for API calls (seconds)
+  timeout: 30
+  
+  # Max retries before fallback
+  max_retries: 3
+  
+  # Retry delay (seconds)
+  retry_delay: 2
+
+# Model Settings
+models:
+  gemini: "gemini-2.5-flash"
+  claude: "claude-3-5-sonnet-20241022"
+  openai: "gpt-4-mini"
+
+# GUI Settings
+gui:
+  # Window size
+  width: 700
+  height: 450
+  
+  # Theme (dark, light, custom)
+  theme: "dark"
+  
+  # Font
+  font_family: "Courier"
+  font_size: 11
+  
+  # Colors (for dark theme)
+  bg_color: "#0d0d0d"
+  fg_color: "#00ff00"
+  user_color: "#00ccff"
+  system_color: "#ffaa00"
+  separator_color: "#444444"
+  
+  # Auto-focus entry field
+  auto_focus: true
+  
+  # Show debug messages in GUI
+  show_debug: false
+
+# Memory & Storage
+memory:
+  # Enable conversation history
+  enabled: true
+  
+  # Database type (sqlite, json)
+  database_type: "sqlite"
+  
+  # Database file location
+  database_path: "./light_conversations.db"
+  
+  # Max conversations to keep
+  max_conversations: 10000
+  
+  # Auto-save interval (seconds)
+  auto_save_interval: 30
+  
+  # Enable user profiles
+  user_profiles: true
+  
+  # Profile directory
+  profiles_dir: "./profiles"
+
+# Persona Settings
+persona:
+  # Default persona
+  default: "LIGHT"
+  
+  # Auto-load last persona
+  auto_load_last: true
+  
+  # Persona descriptions file
+  descriptions_file: "./persona_descriptions.json"
+
+# Music Settings
+music:
+  # Music player (vlc, ffplay, system)
+  player: "vlc"
+  
+  # Download music locally
+  download_local: true
+  
+  # Music directory
+  music_dir: "./music"
+  
+  # Spotify enabled (requires credentials)
+  spotify_enabled: false
+
+# Location & Maps
+location:
+  # Auto-detect location on startup
+  auto_detect: true
+  
+  # Maps type (folium, google, openstreetmap)
+  maps_type: "folium"
+  
+  # Maps output directory
+  maps_dir: "./maps"
+
+# Logging
+logging:
+  # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  level: "DEBUG"
+  
+  # Log file location
+  file: "./light_debug.log"
+  
+  # Max log file size (MB)
+  max_size: 50
+  
+  # Backup log files
+  backup_count: 5
+
+# Features
+features:
+  # Enable real-time API mode
+  realtime_api: false
+  
+  # Enable GUI mode
+  gui_mode: true
+  
+  # Enable voice input
+  voice_input: true
+  
+  # Enable music streaming
+  music_streaming: true
+  
+  # Enable navigation/maps
+  navigation: true
+  
+  # Enable local model fallback (requires Ollama)
+  local_model_fallback: false
+  
+  # Local model name (if using Ollama)
+  local_model_name: "mistral"
+
+# Advanced Settings
+advanced:
+  # Token limit per message
+  max_tokens: 20000
+  
+  # Persona instruction length limit
+  max_persona_length: 50000
+  
+  # Temperature (creativity, 0-1)
+  temperature: 0.7
+  
+  # Top P (diversity, 0-1)
+  top_p: 0.9
+  
+  # Enable caching
+  caching: true
+  
+  # Cache directory
+  cache_dir: "./cache"
+  
+  # Cache timeout (hours)
+  cache_timeout: 24
+
+# Auto-restart Settings
+daemon:
+  # Enable auto-restart daemon
+  enabled: true
+  
+  # Check interval (seconds)
+  check_interval: 60
+  
+  # Restart on crash
+  restart_on_crash: true
+  
+  # Max restarts per hour
+  max_restarts_per_hour: 5
+  
+  # Log file for daemon
+  log_file: "./light_daemon.log"
+
+# Security
+security:
+  # Verify API keys on startup
+  verify_api_keys: true
+  
+  # Don't log sensitive info
+  hide_sensitive: true
+  
+  # Max message history per conversation (prevent memory issues)
+  max_message_history: 5000
+
+# Interrupt & Response Settings
+interrupt:
+  # Enable voice interrupt detection (automatically stops when user speaks)
+  voice_interrupt_enabled: true
+  
+  # Voice detection threshold (lower = more sensitive, 100-1000)
+  voice_threshold: 400
+  
+  # Interrupt check interval in milliseconds (lower = faster response)
+  check_interval_ms: 5
+  
+  # Debounce time for interrupts (seconds)
+  debounce_seconds: 0.5
+  
+  # Show immediate visual feedback on interrupt
+  immediate_feedback: true
+  
+  # Auto-resume after interrupt (requires new user input)
+  auto_resume: false

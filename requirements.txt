@@ -1,0 +1,188 @@
+# ============================================================
+# LIGHT - Multi-API Voice Assistant
+# Complete Requirements & Dependencies
+# ============================================================
+# Last Updated: February 2026
+# Python Version: 3.10+
+# This file contains all packages needed for full functionality
+
+# ============================================================
+# CORE LLM APIs - Language Model Providers
+# ============================================================
+# Primary API providers for intelligent responses
+google-genai>=0.8.6          # Google Gemini API (newer SDK)
+google-generativeai>=0.3.0   # Google Gemini API (legacy fallback)
+anthropic>=0.77.0            # Anthropic Claude API
+openai>=1.0.0                # OpenAI GPT API
+requests>=2.31.0             # HTTP requests library (API calls)
+
+# ============================================================
+# AUDIO & VOICE PROCESSING - Speech Recognition & TTS
+# ============================================================
+# Speech-to-text and text-to-speech capabilities
+pyaudio>=0.2.13              # Audio I/O interface
+SpeechRecognition>=3.10.0    # Google Speech Recognition
+vosk>=0.3.45                 # Offline speech recognition engine
+RealtimeSTT>=0.0.28          # Real-time speech-to-text recorder
+elevenlabs>=0.2.30           # ElevenLabs premium text-to-speech
+pyttsx3>=2.90                # Free offline text-to-speech
+soundfile>=0.12.1            # Read/write audio files
+sounddevice>=0.4.6           # Audio device interface
+webrtcvad>=2.0.10            # Voice activity detection (fixed version)
+nest_asyncio>=1.6.0          # Async event loop support
+
+# ============================================================
+# SYSTEM AUTOMATION & CONTROL - User Input & Window Management
+# ============================================================
+# Keyboard, mouse, and window control
+pyautogui>=0.9.53            # Keyboard and mouse control
+pywin32>=306                 # Windows API access (includes win32gui, win32con, win32api)
+keyboard>=0.13.5             # Global keyboard event listener
+psutil>=5.9.0                # Process and system monitoring
+
+# ============================================================
+# IMAGE & SCREEN PROCESSING - Screenshots & OCR
+# ============================================================
+# Visual processing and text extraction
+Pillow>=10.0.0               # Image processing (PIL)
+pytesseract>=0.3.10          # Optical Character Recognition wrapper
+# Note: pytesseract requires Tesseract engine installed separately
+# Download from: https://github.com/UB-Mannheim/tesseract/wiki
+
+# ============================================================
+# DATA & STORAGE - Database & Persistence
+# ============================================================
+# Database and data serialization (SQLite built-in with Python)
+PyYAML>=6.0.1                # YAML configuration parsing
+python-dotenv>=1.0.0         # Environment variable loading from .env
+# sqlite3 is built-in with Python (no install needed)
+
+# ============================================================
+# MEDIA & ENTERTAINMENT - Spotify & YouTube
+# ============================================================
+# Music streaming and video download
+spotipy>=2.23.0              # Spotify API wrapper
+yt-dlp>=2024.1.1             # YouTube video downloader & metadata extractor
+
+# ============================================================
+# LOCATION & MAPPING - Geolocation Services
+# ============================================================
+# Location services and map generation
+geopy>=2.4.0                 # Geolocation and geocoding
+folium>=0.14.0               # Interactive map generation
+Levenshtein>=0.21.1          # Fuzzy string matching for locations
+
+# ============================================================
+# WEB & DATA PROCESSING - HTTP & Content Parsing
+# ============================================================
+# Web scraping and markup parsing
+beautifulsoup4>=4.12.0       # HTML/XML parsing
+aiohttp>=3.13.3              # Async HTTP client/server
+aiofiles>=25.1.0             # Async file I/O
+lxml>=4.9.0                  # Fast XML/HTML processing
+markdown2>=2.4.1             # Markdown to HTML conversion
+html5lib>=1.1                # HTML5 parser
+
+# ============================================================
+# ASYNC & CONCURRENCY - Threading & Event Handling
+# ============================================================
+# Asynchronous programming support
+# asyncio                      # Built-in with Python (no install needed)
+aiosignal>=1.4.0             # Async signal support
+six>=1.16.0                  # Python 2/3 compatibility utilities
+
+# ============================================================
+# CONFIGURATION & TYPE HINTS - Data Validation
+# ============================================================
+# Type hints and data validation
+pydantic>=2.0.0              # Data validation using Python type hints
+typing-extensions>=4.8.0     # Extended type hints for older Python versions
+annotated_types>=0.7.0       # Annotations for type metadata
+attrs>=25.4.0                # Classes without boilerplate
+
+# ============================================================
+# UTILITIES & HELPERS - Common Utilities
+# ============================================================
+# General purpose utilities
+click>=8.3.1                 # Command-line interface creation
+coloredlogs>=15.0.0          # Colored logging output
+backoff>=2.2.1               # Retry decorator
+bidict>=0.23.1               # Bidirectional dictionary
+chardet>=5.2.0               # Character encoding detection
+# uuid - built-in with Python (uuid module)
+# json - built-in with Python (json module)
+# threading - built-in with Python (threading module)
+# random - built-in with Python (random module)
+# time - built-in with Python (time module)
+# socket - built-in with Python (socket module)
+# datetime - built-in with Python (datetime module)
+# pathlib - built-in with Python (pathlib module)
+# re - built-in with Python (re module)
+# ast - built-in with Python (ast module)
+# shutil - built-in with Python (shutil module)
+# math - built-in with Python (math module)
+
+# ============================================================
+# GUI - Tkinter (Built-in with Python)
+# ============================================================
+# GUI Framework included with Python standard library
+# tkinter - built-in (no install needed on Windows)
+# tkinter.scrolledtext - built-in
+# tkinter.messagebox - built-in
+
+# ============================================================
+# OPTIONAL DEVELOPMENT DEPENDENCIES
+# ============================================================
+# Uncomment these if you're developing/contributing to LIGHT
+
+# pytest>=7.4.0              # Unit testing framework
+# pytest-asyncio>=0.21.0     # Async test support
+# black>=23.10.0             # Code formatter
+# flake8>=6.1.0              # Linter
+# mypy>=1.5.0                # Static type checker
+# sphinx>=7.2.0              # Documentation generator
+
+# ============================================================
+# INSTALLATION NOTES
+# ============================================================
+# 1. Create virtual environment: python -m venv KAI
+# 2. Activate venv: KAI\Scripts\activate (Windows)
+# 3. Install: pip install -r requirements.txt
+# 4. Additional setup:
+#    - For OCR: Download Tesseract from https://github.com/UB-Mannheim/tesseract/wiki
+#    - For Spotify: Create app at https://developer.spotify.com/dashboard
+#    - For APIs: Get keys from Gemini, OpenAI, and/or Claude dashboards
+# 5. Create .env file with API keys
+# 6. Edit config.yaml for preferences
+# 7. Run: python main.py
+
+# ============================================================
+# PACKAGE DESCRIPTIONS
+# ============================================================
+# google-genai: Modern Google Gemini API SDK with streaming support
+# anthropic: Official Anthropic Claude API client
+# openai: Official OpenAI API client for GPT models
+# pyaudio: Audio I/O for microphone and speaker access
+# SpeechRecognition: Simple speech recognition with multiple engines
+# vosk: Lightweight offline speech recognition
+# RealtimeSTT: Continuous real-time speech-to-text recording
+# elevenlabs: Premium text-to-speech with natural voices
+# pyttsx3: Free offline text-to-speech engine
+# pyautogui: Simulate mouse and keyboard input
+# pywin32: Windows API access for advanced window control
+# keyboard: Global keyboard event detection
+# psutil: Process and system resource monitoring
+# Pillow: Image processing and manipulation
+# pytesseract: Tesseract OCR wrapper for text extraction from images
+# PyYAML: Parse and create YAML configuration files
+# python-dotenv: Load environment variables from .env files
+# spotipy: Spotify Web API client
+# yt-dlp: Feature-rich YouTube downloader
+# geopy: Geolocation and reverse geocoding
+# folium: Create interactive Leaflet maps
+# beautifulsoup4: Parse HTML and XML documents
+# aiohttp: Async HTTP client and server
+# pydantic: Runtime data validation with type hints
+# click: Build command-line interfaces
+# coloredlogs: Colored log output for better readability
+# backoff: Exponential backoff decorator for retries

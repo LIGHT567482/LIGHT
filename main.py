@@ -2975,7 +2975,8 @@ EMOTION_VOICE = {
 CURRENT_EMOTION = "neutral"
 
 def speak(text, emotion="neutral"):
-    """Speak with emotional variation (rate + volume)."""
+    """Speak text with emotion, interruptible by user speech."""
+    global LIGHT_SPEAKING_EVENT, USER_SPEAKING_EVENT, INTERRUPT_EVENT, STOP_RESPONDING
     text = personality_wrap(text)
     cfg = EMOTION_VOICE.get(emotion, EMOTION_VOICE["neutral"])
     engine.setProperty("rate", cfg["rate"])
@@ -2984,8 +2985,15 @@ def speak(text, emotion="neutral"):
     except Exception:
         pass
     print(f"[LIGHT-{emotion.upper()}] {text}")
-    engine.say(text)
-    engine.runAndWait()
+    LIGHT_SPEAKING_EVENT.set()  # Mark as speaking
+    import re
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    for sentence in sentences:
+        if USER_SPEAKING_EVENT.is_set() or INTERRUPT_EVENT.is_set() or STOP_RESPONDING.is_set():
+            break
+        engine.say(sentence)
+        engine.runAndWait()
+    LIGHT_SPEAKING_EVENT.clear()  # Done speaking
 
 def detect_emotion(text):
     """Detect emotion from user text. Returns: sad, excited, frustrated, angry, happy, neutral."""
@@ -3029,80 +3037,62 @@ def _apply_emotion_to_tts(eng):
 
 
 def tts_queue_worker():
-    """Background worker to consume `audio_queue` and speak text chunks.
-
-    This worker respects `STOP_RESPONDING` (when set, queued items are skipped)
-    and `INTERRUPT_EVENT` (set by incoming user input to stop current TTS immediately).
-    Uses a monitoring thread to stop TTS within milliseconds of interrupt detection.
-    """
-    global audio_queue, STOP_RESPONDING, INTERRUPT_EVENT, engine
-    
-    # Thread-safe flag for immediate TTS stop
-    tts_should_stop = threading.Event()
-    monitoring_thread = None
-    
-    def monitor_for_interrupt():
-        """Background thread that monitors for interrupts during TTS and stops immediately"""
-        while not tts_should_stop.is_set():
-            if STOP_RESPONDING.is_set() or INTERRUPT_EVENT.is_set():
-                # IMMEDIATELY stop TTS - no waiting
-                try:
-                    engine.stop()
-                except:
-                    pass
-                tts_should_stop.set()
-                break
-            time.sleep(0.005)  # Check every 5ms for near-instant response
-    
+    """TTS worker that can be interrupted by user speech."""
+    global audio_queue, LIGHT_SPEAKING_EVENT, USER_SPEAKING_EVENT, INTERRUPT_EVENT, STOP_RESPONDING
+    import re
     while True:
         try:
             if audio_queue is None:
                 time.sleep(0.1)
                 continue
-
-            text = audio_queue.get()
-            if text is None:
+            item = audio_queue.get()
+            if item is None:
                 continue
-
             # If system-level stop is requested, discard queued messages
             if STOP_RESPONDING.is_set():
-                # drain any remaining quickly
                 continue
-
             # Clear temporary interrupt flag before speaking
             INTERRUPT_EVENT.clear()
-            tts_should_stop.clear()
-            
-            # Start interrupt monitoring thread for IMMEDIATE response
-            monitoring_thread = Thread(target=monitor_for_interrupt, daemon=True)
-            monitoring_thread.start()
-
-            # Apply emotion settings
-            try:
-                _apply_emotion_to_tts(engine)
-            except Exception:
-                pass
-
-            # Speak with immediate interrupt capability
-            try:
-                engine.say(text)
+            LIGHT_SPEAKING_EVENT.set()
+            # Support (text, emotion) or just text
+            if isinstance(item, tuple) and len(item) == 2:
+                text, emotion = item
+            else:
+                text, emotion = item, "neutral"
+            _apply_emotion_to_tts(engine)
+            sentences = re.split(r'(?<=[.!?]) +', text)
+            for sentence in sentences:
+                if USER_SPEAKING_EVENT.is_set() or INTERRUPT_EVENT.is_set() or STOP_RESPONDING.is_set():
+                    break
+                engine.say(sentence)
                 engine.runAndWait()
-            except Exception as e:
-                # If an interruption occurs, pyttsx3 may raise; handle gracefully
-                print(f"[TTS] speak error/interrupted: {e}")
-                try:
-                    engine.stop()
-                except Exception:
-                    pass
-            finally:
-                # Signal monitoring thread to stop
-                tts_should_stop.set()
-                if monitoring_thread:
-                    monitoring_thread.join(timeout=0.1)
-
+            LIGHT_SPEAKING_EVENT.clear()
         except Exception as e:
             print(f"[TTS] Worker error: {e}")
+            LIGHT_SPEAKING_EVENT.clear()
             time.sleep(0.2)
+# --- Real-time barge-in: Listen for user speech and interrupt TTS ---
+def monitor_user_speech_and_interrupt():
+    """Monitor for user speech and interrupt TTS if detected."""
+    import time
+    while True:
+        if USER_SPEAKING_EVENT.is_set():
+            # Interrupt TTS immediately
+            INTERRUPT_EVENT.set()
+            try:
+                engine.stop()
+            except Exception:
+                pass
+            # Wait until user stops speaking
+            while USER_SPEAKING_EVENT.is_set():
+                time.sleep(0.05)
+            INTERRUPT_EVENT.clear()
+        time.sleep(0.05)
+
+# Start the monitor thread at startup (in main or after globals)
+if 'USER_SPEECH_MONITOR_THREAD' not in globals():
+    USER_SPEECH_MONITOR_THREAD = threading.Thread(target=monitor_user_speech_and_interrupt, daemon=True)
+    USER_SPEECH_MONITOR_THREAD.start()
 
 
 def internet_available():
@@ -8372,13 +8362,12 @@ def monitor_realtime_response():
             time.sleep(1)
 
 async def listen_audio_realtime(audio_queue_mic):
-    """Listens for audio and puts it into the mic audio queue (for Live API)"""
-    global STOP_EVENT
+    """Listens for audio and puts it into the mic audio queue (for Live API), but skips listening while LIGHT is speaking."""
+    global STOP_EVENT, LIGHT_SPEAKING_EVENT
     pya = pyaudio.PyAudio()
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     CHUNK_SIZE = 1024
-    
     try:
         mic_info = pya.get_default_input_device_info()
         audio_stream = await asyncio.to_thread(
@@ -8390,7 +8379,6 @@ async def listen_audio_realtime(audio_queue_mic):
             input_device_index=int(mic_info["index"]) if isinstance(mic_info.get("index"), (int, float)) else None,
             frames_per_buffer=CHUNK_SIZE,
         )
-        
         kwargs = {"exception_on_overflow": False} if __debug__ else {}
         error_count = 0
         while error_count < 5:
@@ -8398,16 +8386,17 @@ async def listen_audio_realtime(audio_queue_mic):
             if STOP_EVENT.is_set():
                 print(f"[INFO] Audio listen stopped - STOP_EVENT detected")
                 break
-            
+            # Skip listening while LIGHT is speaking
+            if LIGHT_SPEAKING_EVENT.is_set():
+                await asyncio.sleep(0.05)
+                continue
             try:
                 data = await asyncio.to_thread(audio_stream.read, CHUNK_SIZE, **kwargs)
                 try:
-                    # Longer timeout to avoid queue full errors
                     await asyncio.wait_for(audio_queue_mic.put({"data": data, "mime_type": "audio/pcm"}), timeout=2.0)
                 except asyncio.TimeoutError:
-                    # If queue is truly full, skip this frame (audio dropout is better than crash)
                     if audio_queue_mic.full():
-                        pass  # Silently skip
+                        pass
                 error_count = 0
             except Exception as e:
                 error_count += 1
@@ -8417,7 +8406,6 @@ async def listen_audio_realtime(audio_queue_mic):
                 else:
                     print(f"[ERROR] Audio input failed after 5 attempts: {e}")
                     break
-        
         audio_stream.close()
         pya.terminate()
     except Exception as e:

@@ -49,7 +49,7 @@ coverage.xml
 
 # pyenv
 .python-version
-
+.env
 # mypy
 .mypy_cache/
 .dmypy.json
